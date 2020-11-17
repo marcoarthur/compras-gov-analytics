@@ -63,7 +63,7 @@ t10_uasgs <- contracts %>%
 soma <- sum(t10_uasgs$total)
 
 t10_uasgs %>%
-  add_row( nome_uasg = 'Soma Total Quantidade', total = soma ) %>%
+  add_row( nome_uasg = 'Soma Total das Quantidades', total = soma ) %>%
   gt() %>%
   tab_header(
              title = "Dez maiores contratantes",
@@ -83,11 +83,11 @@ t10_uasgs <- contracts %>%
 
 soma <- sum(t10_uasgs$`Total Valores`)
 t10_uasgs %>%
-  add_row( nome_uasg = 'Soma Total Valores', `Total Valores` = soma ) %>%
+  add_row( nome_uasg = 'Soma Total dos Valores', `Total Valores` = soma ) %>%
   gt() %>%
   tab_header(
              title = "Dez maiores contratantes",
-             subtitle = "Por Valores contratados"
+             subtitle = "Pela soma dos valores contratados"
              ) %>%
   fmt_currency(
                columns = vars(`Total Valores`),
@@ -112,7 +112,7 @@ t10_provider %>%
   gt() %>%
   tab_header(
              title = "Dez maiores contratados (executores)",
-             subtitle = "Por valores recebidos"
+             subtitle = "Pela soma de valores recebidos"
              ) %>%
   fmt_currency(
                columns = vars(`Soma Valores`),
@@ -144,7 +144,7 @@ t10_providers_contracts %>%
   gt() %>%
   tab_header(
              title = "Tipo de Licitações",
-             subtitle = "Quantidade e soma de valores"
+             subtitle = "Quantidade e soma de valores e descrição da modalidade"
              ) %>%
   fmt_currency(
                columns = vars(`Valor Total`),
