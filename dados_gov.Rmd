@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, fig.path='Figs/')
 library(tidyverse)
 library(broom)
 library(gt)
@@ -15,7 +15,6 @@ library(readr)
 # datasets
 contracts <- read_csv("contracts.csv")
 contracts <- contracts %>% filter( data_assinatura > '2000-01-01')
-uasgs <- read_csv("uasgs.csv")
 
 # helpers variable
 modalidade_licitacao_codigos <- data.frame( `Código` = 1:7, `Descrição` = c("nao sei", "nao sei", "concorrência","nao sei","pregão","dispensa licitação", "inexigibilidade de licitação"))
@@ -24,55 +23,81 @@ modalidade_licitacao_codigos <- data.frame( `Código` = 1:7, `Descrição` = c("
 # Compras Governamentais
 
 Esse EDA (Exploratory Data Analysis) sobre os dados obtidos através do portal
-de compras do governo federal e pelo desenvolvimento de uma [ferramenta](https://github.com/marcoarthur/compras-gov)
-para busca e processamento utilizando de sua [api](http://compras.dados.gov.br/docs/)
+de compras do governo federal e pelo desenvolvimento de uma
+[ferramenta](https://github.com/marcoarthur/compras-gov) para busca e
+processamento utilizando de sua [API](http://compras.dados.gov.br/docs/).
 
-Os dados são resultados da ""busca por todos os contratos firmados com pessoas
-físicas, isto é, entre governo e pessoas identificadas pelo seu CPF"" (anonimizado).
+Os dados são resultados da __busca por todos os contratos firmados com pessoas
+físicas, isto é, entre governo e pessoas identificadas pelo seu CPF[^1]__
+(anonimizado).
 
-Variáveis da planilha de dados seguem listadas abaixo:
+[^1]: Cadastro de Pessoas Físicas,
+[wikipedia](https://en.wikipedia.org/wiki/Cadastro_de_Pessoas_F%C3%ADsicas).
+
+Variáveis (Colunas) da planilha de dados seguem listadas abaixo:
 
 ```{r variables}
 data.frame( `Variáveis` = names(contracts) ) %>% gt()
 ```
 
+
 Algumas variáveis merecem comentários:
 
-1. uasg: Unidade de Administração de Serviços Gerais, (orgão governamental contratante)
-2. modalidade: O tipo de compra (licitada, emergencial, etc...). É dada por códigos númericos
-3. objeto: é a definição do serviço e/ou compra efetuada.
-4. Fundamento legal: a lei ou decreto que em princípio se ampara.
+  * __uasg__: Unidade de Administração de Serviços Gerais, (órgão governamental contratante)
+    * __uasg_nome__:  é o nome da Unidade.
+  * __modalidade__: O tipo de compra (licitada, emergencial, etc...). É dada por códigos númericos
+  * __objeto__: é a definição do serviço e/ou compra efetuada.
+  * __fundamento_legal__: a lei ou decreto que, em princípio, ampara-se.
 
-A tabela auxiliar para uasg identifica o nome, endereço e outros dados desses orgãos.
+# Análise dos dados (através de tabelas)
 
-# Análise dos dados
+A tabela das 10 maiores contratantes (UASG) por quantidade de contratos:
 
-As 10 maiores contratantes (UASG) por quantidade de contratos:
 ```{r contracts}
-contracts %>% 
+t10_uasgs <- contracts %>% 
   group_by(nome_uasg) %>%
   summarise( total = n()) %>%
   arrange( desc(total) ) %>%
-  top_n(10) %>%
-  gt()
+  top_n(10)
+
+soma <- sum(t10_uasgs$total)
+
+t10_uasgs %>%
+  add_row( nome_uasg = 'Soma Total Quantidade', total = soma ) %>%
+  gt() %>%
+  tab_header(
+             title = "Dez maiores contratantes",
+             subtitle = "Por Quantidade de Contratos efetuados"
+             )
 ```
 
 As dez maiores contratantes (órgãos de governo) pela soma total dos valores contratados:
+
 ```{r}
-contracts %>%
+
+t10_uasgs <- contracts %>%
   group_by(nome_uasg) %>%
-  summarise( `Total Contratos` = sum(valor_inicial)) %>%
-  arrange( desc(`Total Contratos`) ) %>%
-  top_n(10) %>%
+  summarise( `Total Valores` = sum(valor_inicial)) %>%
+  arrange( desc(`Total Valores`) ) %>%
+  top_n(10)
+
+soma <- sum(t10_uasgs$`Total Valores`)
+t10_uasgs %>%
+  add_row( nome_uasg = 'Soma Total Valores', `Total Valores` = soma ) %>%
   gt() %>%
+  tab_header(
+             title = "Dez maiores contratantes",
+             subtitle = "Por Valores contratados"
+             ) %>%
   fmt_currency(
-    columns = vars(`Total Contratos`),
-    currency = "BRL"
-  )
+               columns = vars(`Total Valores`),
+               currency = "BRL"
+               )
 ```
 
 
 Os dez maiores "fornecedores" (pessoas físicas beneficiadas) pelo governo:
+
 ```{r}
 t10_provider <- contracts %>%
   group_by(nome_fornecedor) %>%
@@ -85,15 +110,20 @@ total <- sum(t10_provider$`Soma Valores`)
 t10_provider %>%
   add_row(nome_fornecedor = 'Total', `Soma Valores` = total) %>%
   gt() %>%
+  tab_header(
+             title = "Dez maiores contratados (executores)",
+             subtitle = "Por valores recebidos"
+             ) %>%
   fmt_currency(
-    columns = vars(`Soma Valores`),
-    currency = "BRL"
-  )
+               columns = vars(`Soma Valores`),
+               currency = "BRL"
+               )
 ```
 
 
 Os contratos estabelecidos pelos maiores beneficiados (ordenado pelo início de vigência
 dos contratos):
+
 ```{r}
 t10_providers_contracts <- contracts %>%
   filter( nome_fornecedor %in% t10_provider$nome_fornecedor) %>%
@@ -104,6 +134,7 @@ t10_providers_contracts
 
 
 O tipo de licitações nesses contratos:
+
 ```{r}
 t10_providers_contracts %>%
   group_by(modalidade_licitacao) %>%
@@ -111,20 +142,22 @@ t10_providers_contracts %>%
   inner_join(modalidade_licitacao_codigos, by = c("modalidade_licitacao" = "Código")) %>%
   select( `Contratações Total`, `Valor Total`, `Descrição`) %>%
   gt() %>%
+  tab_header(
+             title = "Tipo de Licitações",
+             subtitle = "Quantidade e soma de valores"
+             ) %>%
   fmt_currency(
-    columns = vars(`Valor Total`),
-    currency = "BRL"
-  )
+               columns = vars(`Valor Total`),
+               currency = "BRL"
+               )
 ```
 
-Os órgãos de governo que celebraram os contratos com os maiores beneficiários, ordenados pela soma dos valores pagos:
+Os órgãos de governo que celebraram os contratos com os maiores beneficiários,
+ordenados pela soma dos valores pagos:
+
 ```{r}
 t10_providers_contracts %>%
   group_by(nome_uasg) %>%
   summarise( contratos = n(), total_valor = sum(valor_inicial)) %>%
   arrange(desc(total_valor))
 ```
-
-
-
-
